@@ -1,0 +1,1 @@
+This Telegram bot sends images to subscribers from subscribers list
