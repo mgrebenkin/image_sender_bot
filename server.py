@@ -1,6 +1,6 @@
 from loguru import logger
 
-from constants import IMAGE_SENDER_BOT_API_TOKEN, AUTH_ENABLED, DB_PATH
+from constants import IMAGE_SENDER_BOT_API_TOKEN, AUTH_ENABLED, DB_PATH, USERNAME_WHITELIST
 from aiogram import Bot, Dispatcher, executor, types
 from images_db import ImagesDB
 import exceptions
@@ -18,8 +18,18 @@ else:
 
 img_db = ImagesDB(DB_PATH)
 
+def auth(func):
+
+    async def wrapper(message: types.Message):
+        if not (message.from_user.username in USERNAME_WHITELIST) and (AUTH_ENABLED):
+            return await message.reply("Нет доступа")
+        return await func(message)
+    
+    return wrapper
+
 
 @dp.message_handler(content_types=types.ContentTypes.PHOTO)
+@auth
 async def store_image(message: types.Message):
     img_blob = io.BytesIO()
     await message.photo[-1].download(destination_file=img_blob)
@@ -28,7 +38,9 @@ async def store_image(message: types.Message):
     except exceptions.CantStoreImage:
         await message.answer("Не удалось сохранить изображение")
 
+
 @dp.message_handler(commands=['send'])
+@auth
 async def send_random_image(message: types.Message):
     try:
         fetched_image = types.InputFile(img_db.fetch_random_image())
